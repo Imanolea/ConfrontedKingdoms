@@ -1,6 +1,8 @@
 #include <gb/gb.h>
 
 extern const unsigned char tileset[];
+extern const unsigned char bkgset[];
+extern const unsigned char map[];
 
 /* key pressed (true) or not (false)
 0: left
@@ -28,20 +30,23 @@ struct player {
 
 static struct player hero;
 
+signed UBYTE scrlx;
+signed UBYTE scrly;
+
 /* Animations */
 /* odd: frame, even: iterations of the frame */
 /* 255: end of the animation */
 
 unsigned UBYTE horizontalidleanim[] = {
-	 20,   5, 255, 255, 255, 255, 255, 255, 255, NULL
+	 20,   5, 255, NULL
 };
 
 unsigned UBYTE upidleanim[] = {
-	 36,   5, 255, 255, 255, 255, 255, 255, 255, NULL
+	 36,   5, 255, NULL
 };
 
 unsigned UBYTE downidleanim[] = {
-	  4,   5, 255, 255, 255, 255, 255, 255, 255, NULL
+	  4,   5, 255, NULL
 };
 
 unsigned UBYTE horizontalwalkanim[] = {
@@ -58,7 +63,7 @@ unsigned UBYTE downwalkanim[] = {
 
 void animhero() {
 	
-	UBYTE correctframe = 0;
+	unsigned UBYTE correctframe = 0;
 	
 	hero.frametimer = hero.frametimer - 1;
 	
@@ -110,17 +115,19 @@ void init() {
 	HIDE_WIN;
 	HIDE_SPRITES;
 	
+	set_bkg_data(0, 1, bkgset);
+	set_bkg_tiles(0, 0, 32, 32, map);
+	
 	set_sprite_data(0, 52, tileset);
 	
 	hero.x = 80;
-	hero.y = 72;
+	hero.y = 80;
 	hero.orientation = 3;
 	hero.state = 0;
 	hero.frame = 0;
 	hero.frametimer = 1;
 	
 	SHOW_BKG;
-	SHOW_WIN;
 	SHOW_SPRITES;
 	DISPLAY_ON;
 	enable_interrupts();
@@ -139,30 +146,41 @@ void setinput(int key) {
 }
 
 inputlogic() {
-	hero.state = 0;
+	unsigned UBYTE neworientation = hero.orientation;
+	unsigned UBYTE newstate = 0;
+	
+	scrlx = 0;
+	scrly = 0;
 	
 	if (input[0]) { // left
-		hero.x = hero.x - 1;
-		hero.orientation = 0;
-		hero.state = 1;
+		scrlx = -1;
+		neworientation = 0;
+		newstate = 1;
 	}
 	
 	if (input[1]) { // right
-		hero.x = hero.x + 1;
-		hero.orientation = 1;
-		hero.state = 1;
+		scrlx = 1;
+		neworientation = 1;
+		newstate = 1;
 	}
 	
 	if (input[2]) { // up
-		hero.y = hero.y - 1;
-		hero.orientation = 2;
-		hero.state = 1;
+		scrly =-1;
+		neworientation = 2;
+		newstate = 1;
 	}
 	
 	if (input[3]) { // down
-		hero.y = hero.y + 1;
-		hero.orientation = 3;
-		hero.state = 1;
+		scrly = 1;
+		neworientation = 3;
+		newstate = 1;
+	}
+	
+	if (neworientation != hero.orientation || newstate != hero.state) {
+		hero.animframe = 0;
+		hero.frametimer = 1;
+		hero.orientation = neworientation;
+		hero.state = newstate;
 	}
 }
 
@@ -172,7 +190,7 @@ void logic() {
 }
 
 void painthero() {
-	UBYTE orientationvalue = 0;
+	unsigned UBYTE orientationvalue = 0;
 	
 	set_sprite_tile(0, hero.frame);
 	set_sprite_tile(1, hero.frame + 1);
@@ -198,9 +216,14 @@ void painthero() {
 	set_sprite_prop(3, orientationvalue);
 }
 
+void paintbkg() {
+	scroll_bkg(scrlx, scrly);
+}
+
 void paint() {
 	
 	painthero();
+	paintbkg();
 }
 
 void game() {
