@@ -1,5 +1,7 @@
 #include <gb/gb.h>
+#include "gbt_player.h"
 
+extern const unsigned char * song_Data[];
 extern const unsigned char tileset[];
 extern const unsigned char bkgset[];
 extern const unsigned char map[];
@@ -60,6 +62,98 @@ unsigned UBYTE upwalkanim[] = {
 unsigned UBYTE downwalkanim[] = {
 	  4,   5,   8,   5,  12,   5,  16,   5, 255, NULL
 };
+
+
+static UBYTE busy = 0;
+
+///////////////////////////////////////////////
+//
+//  void sfxInit( void )
+//  inicializa el chip de sonido para los sfx
+//
+///////////////////////////////////////////////
+void sfxInit( void ){
+
+    NR52_REG = 0xF8U;
+    NR51_REG = 0x00U;
+    NR50_REG = 0x77U;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+//
+//  void sound_0X(void){
+//  sonidos de una nota
+//  se hacen escribiendo a pelo en los registros de cada canal
+//
+//////////////////////////////////////////////////////////////////////////////////////////////
+void sound_00( void ){
+
+    NR10_REG = 0x34U; // el 4º bit indica si la freq se incrementa o decrece
+
+    // bits 5 a 7  indican el retraso del barrido
+    NR11_REG = 0x80U;
+    NR12_REG = 0xF0U;
+    NR13_REG = 0x0AU; // 8 bits de frecuencia mas bajos
+    NR14_REG = 0xC6U; // los primeros 3 bits son los 3 bits mas altos de la frecuencia
+    NR51_REG |= 0x11;
+}
+
+void sound_01( void ){
+
+    NR41_REG = 0x00;
+    NR42_REG = 0xE1;
+    NR43_REG = 0x22;
+    NR44_REG = 0xC3;
+    NR51_REG = 0x88U;
+}
+
+void sound_02( void ){
+
+    NR10_REG = 0x04U;
+    NR11_REG = 0xFEU;
+    NR12_REG = 0xA1U;
+    NR13_REG = 0x8FU;
+    NR14_REG = 0x86U;
+    NR51_REG = 0xF7;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+//
+//  void sound_03( UBYTE bIn_progress ){
+//  sonidos de dos nota
+//  se hacen escribiendo a pelo en los registros de cada canal
+//
+//////////////////////////////////////////////////////////////////////////////////////////////
+UBYTE sound_03( UBYTE bIn_progress ){
+
+    // esta el sonido 2 reproduciendose?
+    if( NR52_REG & 0x02 ){
+	return 0x01;
+    }
+	
+    // el sonido 2 no esta reproduciendose, pero ya se ha tocado la primera nota
+    else if( bIn_progress ){
+	NR21_REG = 0x80U;
+	NR22_REG = 0x73U;
+	NR23_REG = 0x9EU;
+	NR24_REG = 0xC7U;
+	NR51_REG |= 0x22;
+        return 0x00;
+    }
+    // toca la primera nota
+    else{
+	NR21_REG = 0xAEU;
+	NR22_REG = 0x68U;
+	NR23_REG = 0xDBU;
+	NR24_REG = 0xC6U;
+	NR51_REG |= 0x22;
+	return 0x01;
+    }
+}
+
+
+// *** IMANOLEAS CODE *******/
+
 
 void animhero() {
 	
@@ -130,6 +224,17 @@ void init() {
 	SHOW_BKG;
 	SHOW_SPRITES;
 	DISPLAY_ON;
+	
+	// SOUND
+	//gbt_play(song_Data, 2, 7);
+	//gbt_loop(0);
+
+	// inicia los registros para los sfx
+    sfxInit();
+	
+	set_interrupts(VBL_IFLAG);
+	// SOUND
+	
 	enable_interrupts();
 }
 
@@ -175,6 +280,19 @@ inputlogic() {
 		neworientation = 3;
 		newstate = 1;
 	}
+	
+	if (input[4] && busy == 0) { // A
+		busy = 1;
+		sound_00();
+	}
+
+	if (input[5] && busy == 0) { // B
+		busy = 1;
+		sound_01();
+	}
+	// control para que los sonidos no se sigan reproduciendo si se deja el boton pulsado
+	if(!input[4] && !input[5]&&busy==1)
+		busy = 0;
 	
 	if (neworientation != hero.orientation || newstate != hero.state) {
 		hero.animframe = 0;
@@ -236,6 +354,7 @@ void game() {
 		
 		wait_vbl_done();
 		
+		gbt_update(); // This will change to ROM bank 1.
 		paint();
 	}
 }
