@@ -290,10 +290,11 @@ void inputlogic() {
 	scrlx = scrlx + scrlxinc;
 	scrly = scrly + scrlyinc;
 	
-	if (neworientation != hero.orientation || newstate != hero.state) {
+	hero.orientation = neworientation;
+	
+	if (newstate != hero.state) {
 		hero.animframe = 0;
 		hero.frametimer = 1;
-		hero.orientation = neworientation;
 		hero.state = newstate;
 	}
 }
@@ -368,11 +369,7 @@ void enemylogic() {
 					neworientation = ((hero.y - enemy[i].y + scrly) > (enemy[i].y - hero.y - scrly))? 2: 3;
 				}
 				
-				if (neworientation != enemy[i].orientation) {
-					enemy[i].animframe = 0;
-					enemy[i].frametimer = 1;
-					enemy[i].orientation = neworientation;
-				}
+				enemy[i].orientation = neworientation;
 				
 				enemy[i].dirtimer = 20;
 			
