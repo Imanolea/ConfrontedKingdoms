@@ -123,7 +123,7 @@ void init() {
 	set_win_data(0, 1, bkgset);
 	set_bkg_tiles(0, 0, 32, 32, map);
 	
-	set_sprite_data(0, 110, tileset);
+	set_sprite_data(0, 126, tileset);
 	
 	hero.x = 80;
 	hero.y = 80;
@@ -463,9 +463,9 @@ void writenum (UBYTE num) {
 	sdigit = (num % 100 - tdigit) / 10;
 	fdigit = num / 100;
 	
-	set_sprite_tile(37, 100 + fdigit);
-	set_sprite_tile(38, 100 + sdigit);
-	set_sprite_tile(39, 100 + tdigit);
+	set_sprite_tile(37, 116 + fdigit);
+	set_sprite_tile(38, 116 + sdigit);
+	set_sprite_tile(39, 116 + tdigit);
 }
 
 void paint() {
