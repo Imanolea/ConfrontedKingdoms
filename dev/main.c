@@ -1,10 +1,11 @@
 #include <gb/gb.h>
+#include <rand.h>
 
 extern const unsigned char tileset[];
 extern const unsigned char bkgset[];
 extern const unsigned char map[];
 
-#define ENEMY_NO 8
+#define ENEMY_NO 7
 
 /* key pressed (true) or not (false)
 0: left
@@ -16,24 +17,31 @@ extern const unsigned char map[];
 6: start
 7: select
  */
-unsigned UBYTE input[] = {
+UBYTE input[] = {
 	0, 0, 0, 0, 0, 0, 0, NULL
 };
 
-unsigned UBYTE scrlx;
-unsigned UBYTE scrly;
+UBYTE preinput[] = {
+	0, 0, 0, 0, 0, 0, 0, NULL
+};
 
-signed UBYTE scrlxinc;
-signed UBYTE scrlyinc;
+UBYTE scrlx;
+UBYTE scrly;
+
+BYTE scrlxinc;
+BYTE scrlyinc;
+
+UBYTE debug;
 
 typedef struct soldier {
 	UBYTE x; // x axis position of the sprite
 	UBYTE y; // y axis position of the sprite
 	UBYTE orientation; // left (0), right (1), up (2), down (3)
-	UBYTE state; // null (0), idle (1), walking (2)
+	UBYTE state; // null (0), idle (1), walk (2)
 	UBYTE frame; // frame number in the tileset
 	UBYTE animframe; // frame number in the animation
 	UBYTE frametimer; // numbers of iterations before reaching the next frame in the animation
+	UBYTE dirtimer;
 }soldier_generic;
 
 soldier_generic hero;
@@ -45,59 +53,61 @@ soldier_generic enemy[ENEMY_NO];
 
 /* Hero */
 
-unsigned UBYTE herohorizontalidleanim[] = {
+UBYTE herohorizontalidleanim[] = {
 	 20,   5, 255, NULL
 };
 
-unsigned UBYTE heroupidleanim[] = {
+UBYTE heroupidleanim[] = {
 	 36,   5, 255, NULL
 };
 
-unsigned UBYTE herodownidleanim[] = {
+UBYTE herodownidleanim[] = {
 	  4,   5, 255, NULL
 };
 
-unsigned UBYTE herohorizontalwalkanim[] = {
+UBYTE herohorizontalwalkanim[] = {
 	 20,   5,  24,   5,  28,   5,  32,   5, 255, NULL
 };
 
-unsigned UBYTE heroupwalkanim[] = {
+UBYTE heroupwalkanim[] = {
 	 36,   5,  40,   5,  44,   5,  48,   5, 255, NULL
 };
 
-unsigned UBYTE herodownwalkanim[] = {
+UBYTE herodownwalkanim[] = {
 	  4,   5,   8,   5,  12,   5,  16,   5, 255, NULL
 };
 
 /* Enemies */
 
-unsigned UBYTE enemyhorizontalidleanim[] = {
+UBYTE enemyhorizontalidleanim[] = {
 	 68,   5, 255, NULL
 };
 
-unsigned UBYTE enemyupidleanim[] = {
+UBYTE enemyupidleanim[] = {
 	 84,   5, 255, NULL
 };
 
-unsigned UBYTE enemydownidleanim[] = {
+UBYTE enemydownidleanim[] = {
 	 52,   5, 255, NULL
 };
 
-unsigned UBYTE enemyhorizontalwalkanim[] = {
+UBYTE enemyhorizontalwalkanim[] = {
 	 68,   5,  72,   5,  76,   5,  80,   5, 255, NULL
 };
 
-unsigned UBYTE enemyupwalkanim[] = {
+UBYTE enemyupwalkanim[] = {
 	 84,   5,  88,   5,  92,   5,  96,   5, 255, NULL
 };
 
-unsigned UBYTE enemydownwalkanim[] = {
+UBYTE enemydownwalkanim[] = {
 	 52,   5,  56,   5,  60,   5,  64,   5, 255, NULL
 };
 
 void init() {
 	
 	UBYTE i = 0;
+	
+	initarand(20);
 	
 	wait_vbl_done();
 	disable_interrupts();
@@ -110,9 +120,10 @@ void init() {
 	HIDE_SPRITES;
 	
 	set_bkg_data(0, 1, bkgset);
+	set_win_data(0, 1, bkgset);
 	set_bkg_tiles(0, 0, 32, 32, map);
 	
-	set_sprite_data(0, 100, tileset);
+	set_sprite_data(0, 110, tileset);
 	
 	hero.x = 80;
 	hero.y = 80;
@@ -125,19 +136,38 @@ void init() {
 		enemy[i].x = i * 16;
 		enemy[i].y = i * 16;
 		enemy[i].orientation = 3;
-		enemy[i].state = 2;
+		enemy[i].state = 0;
 		enemy[i].frame = 0;
 		enemy[i].frametimer = 1;
+		enemy[i].dirtimer = 20;
 	}
 	
+	move_sprite(37, 8, 20);
+	move_sprite(38, 16, 20);
+	move_sprite(39, 24, 20);
+	
+	scroll_win(0, 144);
+	
+	debug = 145;
+	
 	SHOW_BKG;
+	SHOW_WIN;
 	SHOW_SPRITES;
 	DISPLAY_ON;
 	
 	enable_interrupts();
 }
 
-void setinput(int key) {
+void setinput(UBYTE key) {
+	
+	preinput[0] = input[0];
+	preinput[1] = input[1];
+	preinput[2] = input[2];
+	preinput[3] = input[3];
+	preinput[4] = input[4];
+	preinput[5] = input[5];
+	preinput[6] = input[6];
+	preinput[7] = input[7];
 	
 	input[0] = key & J_LEFT;
 	input[1] = key & J_RIGHT;
@@ -149,9 +179,24 @@ void setinput(int key) {
 	input[7] = key & J_SELECT;
 }
 
-inputlogic() {
-	unsigned UBYTE neworientation = hero.orientation;
-	unsigned UBYTE newstate = 1;
+void spawnenemy() {
+	UBYTE i;
+	
+	for (i = 0; i != ENEMY_NO; i++) {
+		if (enemy[i].state == 0) {
+			enemy[i].x = rand() % (256 + scrlx) + 160 + scrlx;
+			enemy[i].y = rand() % (256 + scrly) + 144 + scrly;
+			enemy[i].state = 2;
+			enemy[i].animframe = 0;
+			enemy[i].frametimer = 1;
+			break;
+		}
+	}
+} 
+
+void inputlogic() {
+	UBYTE neworientation = hero.orientation;
+	UBYTE newstate = 1;
 	
 	scrlxinc = 0;
 	scrlyinc = 0;
@@ -180,6 +225,12 @@ inputlogic() {
 		newstate = 2;
 	}
 	
+	if (input[7]) { // Select
+		if (!preinput[7]) {
+			spawnenemy();
+		}
+	}
+	
 	scrlx = scrlx + scrlxinc;
 	scrly = scrly + scrlyinc;
 	
@@ -193,7 +244,7 @@ inputlogic() {
 
 void animhero() {
 	
-	unsigned UBYTE correctframe = 0;
+	UBYTE correctframe = 0;
 	
 	hero.frametimer = hero.frametimer - 1;
 	
@@ -233,9 +284,53 @@ void animhero() {
 	}
 }
 
+void enemylogic() {
+	UBYTE i;
+	UBYTE disx;
+	UBYTE disy;
+	UBYTE neworientation;
+	
+	for (i = 0; i != ENEMY_NO; i++) {
+		
+		enemy[i].dirtimer = enemy[i].dirtimer - 1;
+		
+		if (!enemy[i].dirtimer) {
+		
+			disx = ((hero.x - enemy[i].x + scrlx) > (enemy[i].x - hero.x - scrlx))? enemy[i].x - hero.x - scrlx: hero.x - enemy[i].x + scrlx;
+			disy = ((hero.y - enemy[i].y + scrly) > (enemy[i].y - hero.y - scrly))? enemy[i].y - hero.y - scrly: hero.y - enemy[i].y + scrly;
+			
+			if (disx > disy) {
+				neworientation = ((hero.x - enemy[i].x + scrlx) > (enemy[i].x - hero.x - scrlx))? 0: 1;
+			} else {
+				neworientation = ((hero.y - enemy[i].y + scrly) > (enemy[i].y - hero.y - scrly))? 2: 3;
+			}
+			
+			if (neworientation != enemy[i].orientation) {
+				enemy[i].animframe = 0;
+				enemy[i].frametimer = 1;
+				enemy[i].orientation = neworientation;
+			}
+			
+			enemy[i].dirtimer = 20;
+		
+		}
+		
+		if (enemy[i].orientation == 0) {
+			enemy[i].x = enemy[i].x - 2;
+		} else if (enemy[i].orientation == 1) {
+			enemy[i].x = enemy[i].x + 2;			
+		} else if (enemy[i].orientation == 2) {
+			enemy[i].y = enemy[i].y - 2;			
+		} else if (enemy[i].orientation == 3) {
+			enemy[i].y = enemy[i].y + 2;			
+		}
+		
+	}
+}
+
 void animenemies() {
-	unsigned UBYTE correctframe;
-	unsigned UBYTE i;
+	UBYTE correctframe;
+	UBYTE i;
 	
 	for (i = 0; i != ENEMY_NO; i++) {
 	
@@ -287,12 +382,13 @@ void animenemies() {
 
 void logic() {
 	inputlogic();
+	enemylogic();
 	animhero();
 	animenemies();
 }
 
 void painthero() {
-	unsigned UBYTE orientationvalue = 0;
+	UBYTE orientationvalue = 0;
 	
 	set_sprite_tile(0, hero.frame);
 	set_sprite_tile(1, hero.frame + 1);
@@ -319,9 +415,9 @@ void painthero() {
 }
 
 void paintenemies() {
-	unsigned UBYTE orientationvalue;
-	unsigned UBYTE enemysprite;
-	unsigned UBYTE i;
+	UBYTE orientationvalue;
+	UBYTE enemysprite;
+	UBYTE i;
 	
 	for (i = 0; i != ENEMY_NO; i++) {
 	
@@ -358,8 +454,23 @@ void paintbkg() {
 	scroll_bkg(scrlxinc, scrlyinc);
 }
 
+void writenum (UBYTE num) {
+	UBYTE fdigit;
+	UBYTE sdigit;
+	UBYTE tdigit;
+	
+	tdigit = num % 10;
+	sdigit = (num % 100 - tdigit) / 10;
+	fdigit = num / 100;
+	
+	set_sprite_tile(37, 100 + fdigit);
+	set_sprite_tile(38, 100 + sdigit);
+	set_sprite_tile(39, 100 + tdigit);
+}
+
 void paint() {
 	
+	writenum(debug);
 	painthero();
 	paintenemies();
 	paintbkg();
