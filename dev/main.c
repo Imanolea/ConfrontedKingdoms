@@ -216,6 +216,12 @@ void hurthero() {
 	heroinvulnerability = 16;
 }
 
+void killenemy(UBYTE enemyno) {
+	enemy[enemyno].frame = 116;
+	enemy[enemyno].state = 3;
+	enemy[enemyno].frametimer = 16;
+}
+
 void spawnenemy() {
 	UBYTE i;
 	
@@ -271,6 +277,7 @@ void inputlogic() {
 	if (input[6]) { // Star
 		if (!preinput[7]) {
 			hurthero();
+			killenemy(0);
 		}
 	}
 	
@@ -346,37 +353,41 @@ void enemylogic() {
 	
 	for (i = 0; i != ENEMY_NO; i++) {
 		
-		enemy[i].dirtimer = enemy[i].dirtimer - 1;
+		if (enemy[i].state != 3) {
 		
-		if (!enemy[i].dirtimer) {
-		
-			disx = ((hero.x - enemy[i].x + scrlx) > (enemy[i].x - hero.x - scrlx))? enemy[i].x - hero.x - scrlx: hero.x - enemy[i].x + scrlx;
-			disy = ((hero.y - enemy[i].y + scrly) > (enemy[i].y - hero.y - scrly))? enemy[i].y - hero.y - scrly: hero.y - enemy[i].y + scrly;
+			enemy[i].dirtimer = enemy[i].dirtimer - 1;
 			
-			if (disx > disy) {
-				neworientation = ((hero.x - enemy[i].x + scrlx) > (enemy[i].x - hero.x - scrlx))? 0: 1;
-			} else {
-				neworientation = ((hero.y - enemy[i].y + scrly) > (enemy[i].y - hero.y - scrly))? 2: 3;
+			if (!enemy[i].dirtimer) {
+			
+				disx = ((hero.x - enemy[i].x + scrlx) > (enemy[i].x - hero.x - scrlx))? enemy[i].x - hero.x - scrlx: hero.x - enemy[i].x + scrlx;
+				disy = ((hero.y - enemy[i].y + scrly) > (enemy[i].y - hero.y - scrly))? enemy[i].y - hero.y - scrly: hero.y - enemy[i].y + scrly;
+				
+				if (disx > disy) {
+					neworientation = ((hero.x - enemy[i].x + scrlx) > (enemy[i].x - hero.x - scrlx))? 0: 1;
+				} else {
+					neworientation = ((hero.y - enemy[i].y + scrly) > (enemy[i].y - hero.y - scrly))? 2: 3;
+				}
+				
+				if (neworientation != enemy[i].orientation) {
+					enemy[i].animframe = 0;
+					enemy[i].frametimer = 1;
+					enemy[i].orientation = neworientation;
+				}
+				
+				enemy[i].dirtimer = 20;
+			
 			}
 			
-			if (neworientation != enemy[i].orientation) {
-				enemy[i].animframe = 0;
-				enemy[i].frametimer = 1;
-				enemy[i].orientation = neworientation;
+			if (enemy[i].orientation == 0) {
+				enemy[i].x = enemy[i].x - odd;
+			} else if (enemy[i].orientation == 1) {
+				enemy[i].x = enemy[i].x + odd;			
+			} else if (enemy[i].orientation == 2) {
+				enemy[i].y = enemy[i].y - odd;			
+			} else if (enemy[i].orientation == 3) {
+				enemy[i].y = enemy[i].y + odd;			
 			}
-			
-			enemy[i].dirtimer = 20;
 		
-		}
-		
-		if (enemy[i].orientation == 0) {
-			enemy[i].x = enemy[i].x - odd;
-		} else if (enemy[i].orientation == 1) {
-			enemy[i].x = enemy[i].x + odd;			
-		} else if (enemy[i].orientation == 2) {
-			enemy[i].y = enemy[i].y - odd;			
-		} else if (enemy[i].orientation == 3) {
-			enemy[i].y = enemy[i].y + odd;			
 		}
 		
 	}
@@ -425,6 +436,10 @@ void animenemies() {
 					correctframe = 1;
 					enemy[i].animframe = enemy[i].animframe + 2;
 				}
+			}
+			
+			if (enemy[i].state == 3) {
+				enemy[i].state = 0;
 			}
 		
 		}
