@@ -38,6 +38,10 @@ UBYTE swordy;
 UBYTE swordframe;
 UBYTE swordtimer;
 
+UBYTE odd;
+
+UBYTE heroinvulnerability;
+
 typedef struct soldier {
 	UBYTE x; // x axis position of the sprite
 	UBYTE y; // y axis position of the sprite
@@ -130,6 +134,8 @@ void init() {
 	
 	set_sprite_data(0, 126, tileset);
 	
+	odd = 1;
+	
 	hero.x = 80;
 	hero.y = 80;
 	hero.orientation = 3;
@@ -203,7 +209,11 @@ void swingsword() {
 		swordframe = 108;			
 	}
 	
-	swordtimer = 16;
+	swordtimer = 12;
+}
+
+void hurthero() {
+	heroinvulnerability = 16;
 }
 
 void spawnenemy() {
@@ -256,7 +266,13 @@ void inputlogic() {
 		if (!preinput[5]) {
 			swingsword();
 		}
-	}	
+	}
+	
+	if (input[6]) { // Star
+		if (!preinput[7]) {
+			hurthero();
+		}
+	}
 	
 	if (input[7]) { // Select
 		if (!preinput[7]) {
@@ -280,6 +296,11 @@ void animhero() {
 	UBYTE correctframe = 0;
 	
 	hero.frametimer = hero.frametimer - 1;
+	
+	if (heroinvulnerability != 0) {	
+		heroinvulnerability = heroinvulnerability - 1;
+		if (odd == 1) hero.frame = 0;
+	}
 	
 	if (hero.frametimer) return;
 	
@@ -349,13 +370,13 @@ void enemylogic() {
 		}
 		
 		if (enemy[i].orientation == 0) {
-			enemy[i].x = enemy[i].x - 2;
+			enemy[i].x = enemy[i].x - odd;
 		} else if (enemy[i].orientation == 1) {
-			enemy[i].x = enemy[i].x + 2;			
+			enemy[i].x = enemy[i].x + odd;			
 		} else if (enemy[i].orientation == 2) {
-			enemy[i].y = enemy[i].y - 2;			
+			enemy[i].y = enemy[i].y - odd;			
 		} else if (enemy[i].orientation == 3) {
-			enemy[i].y = enemy[i].y + 2;			
+			enemy[i].y = enemy[i].y + odd;			
 		}
 		
 	}
@@ -418,6 +439,8 @@ void logic() {
 	enemylogic();
 	animhero();
 	animenemies();
+	
+	odd = (odd == 1)? 2: 1;
 }
 
 void painthero() {
