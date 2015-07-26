@@ -33,6 +33,11 @@ BYTE scrlyinc;
 
 UBYTE debug;
 
+UBYTE swordx;
+UBYTE swordy;
+UBYTE swordframe;
+UBYTE swordtimer;
+
 typedef struct soldier {
 	UBYTE x; // x axis position of the sprite
 	UBYTE y; // y axis position of the sprite
@@ -179,6 +184,28 @@ void setinput(UBYTE key) {
 	input[7] = key & J_SELECT;
 }
 
+void swingsword() {
+	if (hero.orientation == 0) {
+		swordx = hero.x - 16;
+		swordy = hero.y;
+		swordframe = 112;
+	} else if (hero.orientation == 1) {
+		swordx = hero.x + 16;
+		swordy = hero.y;
+		swordframe = 104;		
+	} else if (hero.orientation == 2) {
+		swordx = hero.x;
+		swordy = hero.y - 16;
+		swordframe = 100;		
+	} else if (hero.orientation == 3) {
+		swordx = hero.x;
+		swordy = hero.y + 16;
+		swordframe = 108;			
+	}
+	
+	swordtimer = 16;
+}
+
 void spawnenemy() {
 	UBYTE i;
 	
@@ -192,7 +219,7 @@ void spawnenemy() {
 			break;
 		}
 	}
-} 
+}
 
 void inputlogic() {
 	UBYTE neworientation = hero.orientation;
@@ -224,6 +251,12 @@ void inputlogic() {
 		neworientation = 3;
 		newstate = 2;
 	}
+	
+	if (input[5]) { // B
+		if (!preinput[5]) {
+			swingsword();
+		}
+	}	
 	
 	if (input[7]) { // Select
 		if (!preinput[7]) {
@@ -468,12 +501,32 @@ void writenum (UBYTE num) {
 	set_sprite_tile(39, 116 + tdigit);
 }
 
+void paintsword() {
+	if (!swordtimer) return;
+	
+	swordtimer = swordtimer - 1;
+	if (swordtimer == 0) {
+		swordframe = 0;
+	}
+	
+	move_sprite(4, swordx, swordy);
+	move_sprite(5, swordx, swordy + 8);
+	move_sprite(6, swordx + 8, swordy);
+	move_sprite(7, swordx + 8, swordy + 8);
+	
+	set_sprite_tile(4, swordframe);
+	set_sprite_tile(5, swordframe + 1);
+	set_sprite_tile(6, swordframe + 2);
+	set_sprite_tile(7, swordframe + 3);
+}
+
 void paint() {
 	
 	writenum(debug);
 	painthero();
 	paintenemies();
 	paintbkg();
+	paintsword();
 }
 
 void game() {
