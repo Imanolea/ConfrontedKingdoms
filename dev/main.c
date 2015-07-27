@@ -2,10 +2,11 @@
 #include <rand.h>
 
 extern const unsigned char tileset[];
-extern const unsigned char bkgset[];
 extern const unsigned char map[];
+extern const unsigned char title[];
 
 #define ENEMY_NO 7
+#define TILES_SIZE 16
 
 /* key pressed (true) or not (false)
 0: left
@@ -42,6 +43,11 @@ UBYTE odd;
 
 UBYTE heroinvulnerability;
 
+UBYTE spawntimer;
+UWORD spawnrate;
+
+UBYTE health;
+
 typedef struct soldier {
 	UBYTE x; // x axis position of the sprite
 	UBYTE y; // y axis position of the sprite
@@ -63,37 +69,37 @@ soldier_generic enemy[ENEMY_NO];
 /* Hero */
 
 UBYTE herohorizontalidleanim[] = {
-	 20,   5, 255, NULL
+	 12,   5, 255, NULL
 };
 
 UBYTE heroupidleanim[] = {
-	 36,   5, 255, NULL
+	 28,   5, 255, NULL
 };
 
 UBYTE herodownidleanim[] = {
-	  4,   5, 255, NULL
+	 4,   5, 255, NULL
 };
 
 UBYTE herohorizontalwalkanim[] = {
-	 20,   5,  24,   5,  28,   5,  32,   5, 255, NULL
+	 12,   5,  16,   5,  12,   5,  16,   5, 255, NULL
 };
 
 UBYTE heroupwalkanim[] = {
-	 36,   5,  40,   5,  44,   5,  48,   5, 255, NULL
+	 28,   5,  32,   5,  28,   5,  32,   5, 255, NULL
 };
 
 UBYTE herodownwalkanim[] = {
-	  4,   5,   8,   5,  12,   5,  16,   5, 255, NULL
+	  4,   5,   8,   5,  4,   5,  8,   5, 255, NULL
 };
 
 /* Enemies */
 
 UBYTE enemyhorizontalidleanim[] = {
-	 68,   5, 255, NULL
+	 60,   5, 255, NULL
 };
 
 UBYTE enemyupidleanim[] = {
-	 84,   5, 255, NULL
+	 76,   5, 255, NULL
 };
 
 UBYTE enemydownidleanim[] = {
@@ -101,16 +107,31 @@ UBYTE enemydownidleanim[] = {
 };
 
 UBYTE enemyhorizontalwalkanim[] = {
-	 68,   5,  72,   5,  76,   5,  80,   5, 255, NULL
+	 60,   5,  64,   5,  60,   5,  64,   5, 255, NULL
 };
 
 UBYTE enemyupwalkanim[] = {
-	 84,   5,  88,   5,  92,   5,  96,   5, 255, NULL
+	 76,   5,  80,   5,  76,   5,  80,   5, 255, NULL
 };
 
 UBYTE enemydownwalkanim[] = {
-	 52,   5,  56,   5,  60,   5,  64,   5, 255, NULL
+	 52,   5,  56,   5,  52,   5,  56,   5, 255, NULL
 };
+
+void spawnenemy() {
+	UBYTE i;
+	
+	for (i = 0; i != ENEMY_NO; i++) {
+		if (enemy[i].state == 0) {
+			enemy[i].x = rand() % (256 + scrlx) + 160 + scrlx;
+			enemy[i].y = rand() % (256 + scrly) + 144 + scrly;
+			enemy[i].state = 2;
+			enemy[i].animframe = 0;
+			enemy[i].frametimer = 1;
+			break;
+		}
+	}
+}
 
 void init() {
 	
@@ -128,11 +149,11 @@ void init() {
 	HIDE_WIN;
 	HIDE_SPRITES;
 	
-	set_bkg_data(0, 1, bkgset);
-	set_win_data(0, 1, bkgset);
+	set_bkg_data(0, 190, tileset);
+	set_win_data(0, 190, tileset);
 	set_bkg_tiles(0, 0, 32, 32, map);
 	
-	set_sprite_data(0, 126, tileset);
+	set_sprite_data(0, 190, tileset);
 	
 	odd = 1;
 	
@@ -143,9 +164,12 @@ void init() {
 	hero.frame = 0;
 	hero.frametimer = 1;
 	
+	health = 3;
+	heroinvulnerability = 0;
+	
 	for (i = 0; i != ENEMY_NO; i++) {
-		enemy[i].x = i * 16;
-		enemy[i].y = i * 16;
+		enemy[i].x = 0;
+		enemy[i].y = 0;
 		enemy[i].orientation = 3;
 		enemy[i].state = 0;
 		enemy[i].frame = 0;
@@ -157,9 +181,12 @@ void init() {
 	move_sprite(38, 16, 20);
 	move_sprite(39, 24, 20);
 	
-	scroll_win(0, 144);
+	move_win(0, 144);
 	
-	debug = 145;
+	debug = 0;
+	
+	spawnrate = 1024;
+	spawntimer = spawnrate;
 	
 	SHOW_BKG;
 	SHOW_WIN;
@@ -167,6 +194,8 @@ void init() {
 	DISPLAY_ON;
 	
 	enable_interrupts();
+	
+	spawnenemy();
 }
 
 void setinput(UBYTE key) {
@@ -192,49 +221,40 @@ void setinput(UBYTE key) {
 
 void swingsword() {
 	if (hero.orientation == 0) {
-		swordx = hero.x - 16;
+		swordx = hero.x - 13;
 		swordy = hero.y;
-		swordframe = 112;
+		swordframe = 44;
 	} else if (hero.orientation == 1) {
-		swordx = hero.x + 16;
+		swordx = hero.x + 13;
 		swordy = hero.y;
-		swordframe = 104;		
+		swordframe = 36;		
 	} else if (hero.orientation == 2) {
 		swordx = hero.x;
-		swordy = hero.y - 16;
-		swordframe = 100;		
+		swordy = hero.y - 13;
+		swordframe = 48;		
 	} else if (hero.orientation == 3) {
 		swordx = hero.x;
-		swordy = hero.y + 16;
-		swordframe = 108;			
+		swordy = hero.y + 13;
+		swordframe = 40;			
 	}
 	
 	swordtimer = 12;
 }
 
 void hurthero() {
-	heroinvulnerability = 16;
+	if (!heroinvulnerability) {
+		health = health - 1;
+		heroinvulnerability = 32;
+	}
 }
 
 void killenemy(UBYTE enemyno) {
-	enemy[enemyno].frame = 116;
+	enemy[enemyno].frame = 84;
 	enemy[enemyno].state = 3;
-	enemy[enemyno].frametimer = 16;
-}
-
-void spawnenemy() {
-	UBYTE i;
+	enemy[enemyno].frametimer = 8;
+	debug = debug + 1;
 	
-	for (i = 0; i != ENEMY_NO; i++) {
-		if (enemy[i].state == 0) {
-			enemy[i].x = rand() % (256 + scrlx) + 160 + scrlx;
-			enemy[i].y = rand() % (256 + scrly) + 144 + scrly;
-			enemy[i].state = 2;
-			enemy[i].animframe = 0;
-			enemy[i].frametimer = 1;
-			break;
-		}
-	}
+	spawnenemy();
 }
 
 void inputlogic() {
@@ -278,12 +298,6 @@ void inputlogic() {
 		if (!preinput[7]) {
 			hurthero();
 			killenemy(0);
-		}
-	}
-	
-	if (input[7]) { // Select
-		if (!preinput[7]) {
-			spawnenemy();
 		}
 	}
 	
@@ -346,6 +360,22 @@ void animhero() {
 	}
 }
 
+UBYTE collision(UBYTE x1, UBYTE y1, UBYTE x2, UBYTE y2){
+	
+	UBYTE disx;
+	UBYTE disy;
+	
+	disx = ((x1 - x2) > (x2 - x1))? x2 - x1: x1 - x2;
+	disy = ((y1 - y2) > (y2 - y1))? y2 - y1: y1 - y2;
+			
+	if(disx < TILES_SIZE && disy < TILES_SIZE) {
+		return 1;
+	}
+	
+	return 0;
+
+}
+
 void enemylogic() {
 	UBYTE i;
 	UBYTE disx;
@@ -354,15 +384,19 @@ void enemylogic() {
 	
 	for (i = 0; i != ENEMY_NO; i++) {
 		
-		if (enemy[i].state != 3) {
-		
+		if (enemy[i].state != 3 && enemy[i].state != 0) {
+			
 			enemy[i].dirtimer = enemy[i].dirtimer - 1;
 			
+			if(collision(hero.x, hero.y, enemy[i].x - scrlx, enemy[i].y - scrly)) {
+				hurthero();
+			}
+		
 			if (!enemy[i].dirtimer) {
-			
+				
 				disx = ((hero.x - enemy[i].x + scrlx) > (enemy[i].x - hero.x - scrlx))? enemy[i].x - hero.x - scrlx: hero.x - enemy[i].x + scrlx;
 				disy = ((hero.y - enemy[i].y + scrly) > (enemy[i].y - hero.y - scrly))? enemy[i].y - hero.y - scrly: hero.y - enemy[i].y + scrly;
-				
+			
 				if (disx > disy) {
 					neworientation = ((hero.x - enemy[i].x + scrlx) > (enemy[i].x - hero.x - scrlx))? 0: 1;
 				} else {
@@ -384,10 +418,14 @@ void enemylogic() {
 			} else if (enemy[i].orientation == 3) {
 				enemy[i].y = enemy[i].y + odd;			
 			}
-		
+			
+			if (swordframe && collision(swordx, swordy, enemy[i].x - scrlx, enemy[i].y - scrly)) {
+				killenemy(i);
+			}
 		}
 		
 	}
+		
 }
 
 void animenemies() {
@@ -446,11 +484,22 @@ void animenemies() {
 	}
 }
 
+void gameplay() {
+	spawntimer = spawntimer - 1;
+	
+	if (!spawntimer) {
+		spawnenemy();
+		spawnrate = (spawnrate < 100)? spawnrate - 100: 5;
+		spawntimer = spawnrate;
+	}
+}
+
 void logic() {
 	inputlogic();
 	enemylogic();
 	animhero();
 	animenemies();
+	gameplay();
 	
 	odd = (odd == 1)? 2: 1;
 }
@@ -527,13 +576,16 @@ void writenum (UBYTE num) {
 	UBYTE sdigit;
 	UBYTE tdigit;
 	
+	UBYTE i = 0;
+	
 	tdigit = num % 10;
 	sdigit = (num % 100 - tdigit) / 10;
 	fdigit = num / 100;
 	
-	set_sprite_tile(37, 116 + fdigit);
-	set_sprite_tile(38, 116 + sdigit);
-	set_sprite_tile(39, 116 + tdigit);
+	set_sprite_tile(37, 180 + fdigit);
+	set_sprite_tile(38, 180 + sdigit);
+	set_sprite_tile(39, 180 + tdigit);
+
 }
 
 void paintsword() {
@@ -566,7 +618,7 @@ void paint() {
 
 void game() {
 	
-	while (1) {
+	while (health!=0) {
 		
 		setinput(joypad());
 		
@@ -579,8 +631,45 @@ void game() {
 }
 
 void main() {
-	init();
+	UBYTE i;
 	
-	game();
+	while(1){
+		
+		wait_vbl_done();
+		
+		for (i = 0; i < 37; i++) {
+			set_sprite_tile(i, 0);
+		}
+		
+		disable_interrupts();
+		
+		SPRITES_8x8;
+		
+		DISPLAY_OFF;
+		HIDE_BKG;
+		HIDE_WIN;
+		HIDE_SPRITES;
+		
+		
+		set_bkg_data(0, 190, tileset);
+		set_bkg_tiles(0, 0, 20, 18, title);
+		
+		move_bkg(0, 0);
+		
+		SHOW_BKG;
+		SHOW_SPRITES;
+		DISPLAY_ON;
+	
+		enable_interrupts();
+		
+		do	{
+			setinput(joypad());
+			wait_vbl_done();
+		} while (!input[6]);
+		
+		init();
+	
+		game();
+	}
 }
 
